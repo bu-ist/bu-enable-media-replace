@@ -25,6 +25,11 @@ Developed for .SE (Stiftelsen för Internetinfrastruktur) - http://www.iis.se
  *
  */
 
+define('EMR_METHOD_REPLACE',                        1);
+define('EMR_METHOD_REPLACE_AND_RENAME',             2);
+define('EMR_METHOD_BOTH',                           3);
+define('EMR_METHOD',    EMR_METHOD_REPLACE_AND_RENAME);
+
 add_action('admin_init', 'enable_media_replace_init');
 add_action('admin_menu', 'emr_menu');
 add_filter('attachment_fields_to_edit', 'enable_media_replace', 10, 2);
