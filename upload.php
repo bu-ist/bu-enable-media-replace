@@ -55,6 +55,90 @@ function emr_delete_current_files($current_file) {
 
 }
 
+/**
+ * Given old and new metadata about a post, this will identify changes in
+ * filenames for sized files (thumbnail, etc) and return them as an array of
+ * <old url, new url>.  If $new_meta does not have a size whose name matches up
+ * with those in $original_meta, the closest size by dimension is used.
+ *
+ * $original_base_url and $new_base_url should point be *URLS* referring to the
+ * *directories* containing the old file and new file respectively.
+ */
+function emr_get_sized_rewrites($original_meta, $original_url, $new_meta, $new_url) {
+	// Map of <from, to> url replacements
+	$rewrites = array();
+	foreach ($original_meta['sizes'] as $size => $s) {
+		// Original dimensions
+		$oh = $s['height'];
+		$ow = $s['width'];
+
+		// Will hold the best-match new filename and dimensions
+		$new_filename = '';
+		$nh = -1;
+		$nw = -1;
+
+		if (isset($new_meta['sizes']) and count($new_meta['sizes'])) {
+			// Find best-matching new size, using $size if possible and
+			// closest dimensions otherwise.
+			if (array_key_exists($size, $new_meta['sizes'])) {
+				$new_filename = $new_meta['sizes'][$size]['file'];
+				$nh = $new_meta['sizes'][$size]['height'];
+				$nw = $new_meta['sizes'][$size]['width'];
+			}
+			else {
+				$diffs  = array();
+				foreach ($new_meta['sizes'] as $new_size => $new_s) {
+					$diffs[$new_size] = (int) abs( ($ow - $new_s['width']) * ($oh - $new_s['height']) );
+				}
+				$diffs_flipped = array_flip($diffs);
+				$new_meta_size_key = $diffs_flipped[min($diffs)];
+			}
+		}
+		else {
+			// No sizes for new file, fallback on full size
+			$new_filename = $new_url;
+		}
+
+		$ourl = sprintf('%s/%s', dirname($original_url), $s['file']);
+		$nurl = sprintf('%s/%s', dirname($new_url), $new_filename);
+		$rewrites[$ourl] = $nurl;
+	}
+
+	return $rewrites;
+}
+
+function emr_perform_rewrites($rewrites, $table_name) {
+	// ["post_content LIKE "%url1%", ...]
+	$likes = array();
+
+	// Will hold from/to targets for str_replace
+	$from_list = $to_list = array();
+	
+	foreach ($rewrites as $url_from => $url_to) {
+		$path_from = parse_url($url_from, PHP_URL_PATH);
+		$path_to = parse_url($url_to, PHP_URL_PATH);
+		$likes[] = sprintf('post_content LIKE "%%%s%%"', str_replace('%', '\%', mysql_real_escape_string($path_from)));
+		$from_list[] = $path_from;
+		$to_list[] = $path_to;
+	}
+	
+	$sql = sprintf('SELECT ID, post_content FROM %s WHERE %s', $table_name, implode(' OR ', $likes));
+	
+	$rs = mysql_query($sql);
+
+	while($row = mysql_fetch_assoc($rs)) {
+
+		// replace old guid with new guid
+		$post_content = $row["post_content"];
+		$replacements = null;
+		$post_content = str_replace($from_list, $to_list, $post_content, $replacements);
+
+		if ($replacements) {
+			$post_content = mysql_real_escape_string($post_content);
+			mysql_query(sprintf('UPDATE %s SET post_content = "%s" WHERE ID = %d', $table_name, $post_content, $row['ID']));
+		}
+	}
+}
 
 // Get old guid and filetype from DB
 $sql = "SELECT guid, post_mime_type FROM $table_name WHERE ID = '" . (int) $_POST["ID"] . "'";
@@ -70,6 +154,7 @@ $current_file = str_replace("//", "/", $current_file);
 $current_filename = basename($current_file);
 
 $replace_type = $_POST["replace_type"];
+
 // We have two types: replace / replace_and_search
 
 if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
@@ -137,23 +222,31 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		$new_meta_name = str_replace($current_filename, $new_filename, $old_meta_name);
 		mysql_query("UPDATE $postmeta_table_name SET meta_value = '$new_meta_name' WHERE meta_key = '_wp_attached_file' AND post_id = '" . (int) $_POST["ID"] . "'");
 
-		// Make thumb and/or update metadata
+		// Make thumb and/or update metadata.  Capture original meta for later.
+		$original_meta = wp_get_attachment_metadata($_POST["ID"]);
 		wp_update_attachment_metadata( (int) $_POST["ID"], wp_generate_attachment_metadata( (int) $_POST["ID"], $new_file) );
+		$new_meta = wp_get_attachment_metadata($_POST["ID"]);
 
 		// Search-and-replace filename in post database
-		$sql = "SELECT ID, post_content FROM $table_name WHERE post_content LIKE '%$current_guid%'";
-		$rs = mysql_query($sql);
-
-		while($rows = mysql_fetch_assoc($rs)) {
-
-			// replace old guid with new guid
-			$post_content = $rows["post_content"];
-			$post_content = addslashes(str_replace($current_guid, $new_guid, $post_content));
-
-			mysql_query("UPDATE $table_name SET post_content = '$post_content' WHERE ID = {$rows["ID"]}");
-		}
+		$wud = wp_upload_dir();
+		$baseurl_rel = parse_url($wud['baseurl'], PHP_URL_PATH); // "/some-site/files"
+		$url_new = wp_get_attachment_url($_POST["ID"]);
+		$url_old = sprintf('%s/%s', $baseurl_rel, $old_meta_name); // "/files/2010/08/test-image.jpg"
 		
+		// Build up a list of rewrites to perform.  Start with direct file URLs.
+		$rewrites = array($url_old => $url_new);
+		
+		// If the original file had alternate sizes, add those too.
+		if (array_key_exists('sizes', $original_meta) && $original_meta['sizes']) {
+			$sized_rewrites = emr_get_sized_rewrites($original_meta, $url_old, $new_meta, $url_new);
+			$rewrites = array_merge($rewrites, $sized_rewrites);
+		}
+	
+		/** Perform rewrites **/
+		emr_perform_rewrites($rewrites, $table_name);
+	
 		// Trigger possible updates on CDN and other plugins 
+
 		update_attached_file( (int) $_POST["ID"], $new_file);
 
 	}
