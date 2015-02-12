@@ -117,7 +117,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 	foreach ($rewrites as $url_from => $url_to) {
 		$path_from = parse_url($url_from, PHP_URL_PATH);
 		$path_to = parse_url($url_to, PHP_URL_PATH);
-		$likes[] = sprintf('post_content LIKE "%%%s%%"', str_replace('%', '\%', mysql_real_escape_string($path_from)));
+		$likes[] = sprintf('post_content LIKE "%%%s%%"', str_replace('%', '\%', esc_sql($path_from)));
 		$from_list[] = $path_from;
 		$to_list[] = $path_to;
 	}
@@ -134,7 +134,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 		$post_content = str_replace($from_list, $to_list, $post_content, $replacements);
 
 		if ($replacements) {
-			$post_content = mysql_real_escape_string($post_content);
+			$post_content = esc_sql($post_content);
 			mysql_query(sprintf('UPDATE %s SET post_content = "%s" WHERE ID = %d', $table_name, $post_content, $row['ID']));
 		}
 	}
