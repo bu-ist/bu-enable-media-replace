@@ -122,11 +122,11 @@ function emr_perform_rewrites($rewrites, $table_name) {
 		$to_list[] = $path_to;
 	}
 	
-	$sql = sprintf('SELECT ID, post_content FROM %s WHERE %s', $table_name, implode(' OR ', $likes));
+	$sql = $wpdb->prepare("SELECT ID, post_content FROM %s WHERE %s", $table_name, implode(' OR ', $likes));
 	
-	$rs = mysql_query($sql);
+	$results = $wpdb->get_results($sql, ARRAY_A);
 
-	while($row = mysql_fetch_assoc($rs)) {
+	foreach($results as $row) {
 
 		// replace old guid with new guid
 		$post_content = $row["post_content"];
@@ -135,7 +135,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 
 		if ($replacements) {
 			$post_content = esc_sql($post_content);
-			mysql_query(sprintf('UPDATE %s SET post_content = "%s" WHERE ID = %d', $table_name, $post_content, $row['ID']));
+			$wpdb->query(sprintf('UPDATE %s SET post_content = "%s" WHERE ID = %d', $table_name, $post_content, $row['ID']));
 		}
 	}
 }
