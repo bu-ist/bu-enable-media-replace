@@ -142,7 +142,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 
 // Get old guid and filetype from DB
 $sql = "SELECT guid, post_mime_type FROM $table_name WHERE ID = '" . (int) $_POST["ID"] . "'";
-list($current_filename, $current_filetype) = mysql_fetch_array(mysql_query($sql));
+list($current_filename, $current_filetype) = $wpdb->get_row($sql, ARRAY_N);
 
 // Massage a bunch of vars
 $current_guid = $current_filename;
@@ -210,17 +210,30 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		$new_guid = str_replace($current_filename, $new_filename, $current_guid);
 
 		// Update database file name
-		mysql_query("UPDATE $table_name SET post_title = '$new_filetitle', post_name = '$new_filetitle', guid = '$new_guid', post_mime_type = '$new_filetype' WHERE ID = '" . (int) $_POST["ID"] . "'");
-		
+		$sql = $wpdb->prepare(
+			"UPDATE $table_name SET post_title = '$new_filetitle', post_name = '$new_filetitle', guid = '$new_guid', post_mime_type = '$new_filetype' WHERE ID = %d;",
+			(int) $_POST["ID"]
+		);
+		$wpdb->query($sql);
+
 		// Update the postmeta file name
 
 		// Get old postmeta _wp_attached_file
-		$sql = "SELECT meta_value FROM $postmeta_table_name WHERE meta_key = '_wp_attached_file' AND post_id = '" . (int) $_POST["ID"] . "'";
-		$old_meta_name = mysql_result(mysql_query($sql),0);
+		$sql = $wpdb->prepare(
+			"SELECT meta_value FROM $postmeta_table_name WHERE meta_key = '_wp_attached_file' AND post_id = %d;",
+			(int) $_POST["ID"]
+		);
+		
+		$old_meta_name = $wpdb->get_row($sql, ARRAY_A);
+		$old_meta_name = $old_meta_name["meta_value"];
 
 		// Make new postmeta _wp_attached_file
 		$new_meta_name = str_replace($current_filename, $new_filename, $old_meta_name);
-		mysql_query("UPDATE $postmeta_table_name SET meta_value = '$new_meta_name' WHERE meta_key = '_wp_attached_file' AND post_id = '" . (int) $_POST["ID"] . "'");
+		$sql = $wpdb->prepare(
+			"UPDATE $postmeta_table_name SET meta_value = '$new_meta_name' WHERE meta_key = '_wp_attached_file' AND post_id = %d;",
+			(int) $_POST["ID"]
+		);
+		$wpdb->query($sql);
 
 		// Make thumb and/or update metadata.  Capture original meta for later.
 		$original_meta = wp_get_attachment_metadata($_POST["ID"]);
