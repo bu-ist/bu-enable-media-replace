@@ -108,6 +108,7 @@ function emr_get_sized_rewrites($original_meta, $original_url, $new_meta, $new_u
 }
 
 function emr_perform_rewrites($rewrites, $table_name) {
+	global $wpdb;
 	// ["post_content LIKE "%url1%", ...]
 	$likes = array();
 
@@ -117,7 +118,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 	foreach ($rewrites as $url_from => $url_to) {
 		$path_from = parse_url($url_from, PHP_URL_PATH);
 		$path_to = parse_url($url_to, PHP_URL_PATH);
-		$likes[] = sprintf('post_content LIKE "%%%s%%"', str_replace('%', '\%', esc_sql($path_from)));
+		$likes[] = sprintf('post_content LIKE "%%%s%%"', esc_sql($path_from));
 		$from_list[] = $path_from;
 		$to_list[] = $path_to;
 	}
