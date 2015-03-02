@@ -139,8 +139,9 @@ function emr_perform_rewrites($rewrites, $table_name) {
 			$wpdb->query(sprintf("UPDATE $table_name SET post_content = '%s' WHERE ID = %d", $post_content, $row['ID']));
 		}
 	}
-
-    bu_clean_post_cache_single($row['ID']);
+	if(function_exists('bu_clean_post_cache_single')){
+		bu_clean_post_cache_single($row['ID']);
+	}
 }
 
 // Get old guid and filetype from DB
@@ -264,7 +265,10 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		// Trigger possible updates on CDN and other plugins 
 
 		update_attached_file( (int) $_POST["ID"], $new_file);
-        bu_clean_post_cache_single( (int) $_POST["ID"] );
+		
+		if(function_exists('bu_clean_post_cache_single')){
+			bu_clean_post_cache_single( (int) $_POST["ID"] );
+		}
 	}
 
 	$returnurl = get_bloginfo("wpurl") . "/wp-admin/upload.php?posted=3";
