@@ -118,12 +118,12 @@ function emr_perform_rewrites($rewrites, $table_name) {
 	foreach ($rewrites as $url_from => $url_to) {
 		$path_from = parse_url($url_from, PHP_URL_PATH);
 		$path_to = parse_url($url_to, PHP_URL_PATH);
-		$likes[] = sprintf('post_content LIKE "%%%s%%"', esc_sql($path_from));
+		$likes[] = sprintf('post_content LIKE "%%%s%%"',$wpdb->esc_like($path_from));
 		$from_list[] = $path_from;
 		$to_list[] = $path_to;
 	}
 	
-	$sql = $wpdb->prepare("SELECT ID, post_content FROM %s WHERE %s", $table_name, implode(' OR ', $likes));
+	$sql = "SELECT ID, post_content FROM $table_name WHERE " . implode(' OR ', $likes);
 	
 	$results = $wpdb->get_results($sql, ARRAY_A);
 
@@ -136,9 +136,11 @@ function emr_perform_rewrites($rewrites, $table_name) {
 
 		if ($replacements) {
 			$post_content = esc_sql($post_content);
-			$wpdb->query(sprintf('UPDATE %s SET post_content = "%s" WHERE ID = %d', $table_name, $post_content, $row['ID']));
+			$wpdb->query(sprintf("UPDATE $table_name SET post_content = '%s' WHERE ID = %d", $post_content, $row['ID']));
 		}
 	}
+
+    bu_clean_post_cache_single($row['ID']);
 }
 
 // Get old guid and filetype from DB
@@ -262,7 +264,7 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		// Trigger possible updates on CDN and other plugins 
 
 		update_attached_file( (int) $_POST["ID"], $new_file);
-
+        bu_clean_post_cache_single( (int) $_POST["ID"] );
 	}
 
 	$returnurl = get_bloginfo("wpurl") . "/wp-admin/upload.php?posted=3";
