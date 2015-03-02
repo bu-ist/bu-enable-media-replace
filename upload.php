@@ -108,6 +108,7 @@ function emr_get_sized_rewrites($original_meta, $original_url, $new_meta, $new_u
 }
 
 function emr_perform_rewrites($rewrites, $table_name) {
+	global $wpdb;
 	// ["post_content LIKE "%url1%", ...]
 	$likes = array();
 
@@ -117,16 +118,16 @@ function emr_perform_rewrites($rewrites, $table_name) {
 	foreach ($rewrites as $url_from => $url_to) {
 		$path_from = parse_url($url_from, PHP_URL_PATH);
 		$path_to = parse_url($url_to, PHP_URL_PATH);
-		$likes[] = sprintf('post_content LIKE "%%%s%%"', str_replace('%', '\%', mysql_real_escape_string($path_from)));
+		$likes[] = sprintf('post_content LIKE "%%%s%%"',$wpdb->esc_like($path_from));
 		$from_list[] = $path_from;
 		$to_list[] = $path_to;
 	}
 	
-	$sql = sprintf('SELECT ID, post_content FROM %s WHERE %s', $table_name, implode(' OR ', $likes));
+	$sql = "SELECT ID, post_content FROM $table_name WHERE " . implode(' OR ', $likes);
 	
-	$rs = mysql_query($sql);
+	$results = $wpdb->get_results($sql, ARRAY_A);
 
-	while($row = mysql_fetch_assoc($rs)) {
+	foreach($results as $row) {
 
 		// replace old guid with new guid
 		$post_content = $row["post_content"];
@@ -134,15 +135,18 @@ function emr_perform_rewrites($rewrites, $table_name) {
 		$post_content = str_replace($from_list, $to_list, $post_content, $replacements);
 
 		if ($replacements) {
-			$post_content = mysql_real_escape_string($post_content);
-			mysql_query(sprintf('UPDATE %s SET post_content = "%s" WHERE ID = %d', $table_name, $post_content, $row['ID']));
+			$post_content = esc_sql($post_content);
+			$wpdb->query(sprintf("UPDATE $table_name SET post_content = '%s' WHERE ID = %d", $post_content, $row['ID']));
 		}
+	}
+	if(function_exists('bu_clean_post_cache_single')){
+		bu_clean_post_cache_single($row['ID']);
 	}
 }
 
 // Get old guid and filetype from DB
 $sql = "SELECT guid, post_mime_type FROM $table_name WHERE ID = '" . (int) $_POST["ID"] . "'";
-list($current_filename, $current_filetype) = mysql_fetch_array(mysql_query($sql));
+list($current_filename, $current_filetype) = $wpdb->get_row($sql, ARRAY_N);
 
 // Massage a bunch of vars
 $current_guid = $current_filename;
@@ -210,17 +214,30 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		$new_guid = str_replace($current_filename, $new_filename, $current_guid);
 
 		// Update database file name
-		mysql_query("UPDATE $table_name SET post_title = '$new_filetitle', post_name = '$new_filetitle', guid = '$new_guid', post_mime_type = '$new_filetype' WHERE ID = '" . (int) $_POST["ID"] . "'");
-		
+		$sql = $wpdb->prepare(
+			"UPDATE $table_name SET post_title = '$new_filetitle', post_name = '$new_filetitle', guid = '$new_guid', post_mime_type = '$new_filetype' WHERE ID = %d;",
+			(int) $_POST["ID"]
+		);
+		$wpdb->query($sql);
+
 		// Update the postmeta file name
 
 		// Get old postmeta _wp_attached_file
-		$sql = "SELECT meta_value FROM $postmeta_table_name WHERE meta_key = '_wp_attached_file' AND post_id = '" . (int) $_POST["ID"] . "'";
-		$old_meta_name = mysql_result(mysql_query($sql),0);
+		$sql = $wpdb->prepare(
+			"SELECT meta_value FROM $postmeta_table_name WHERE meta_key = '_wp_attached_file' AND post_id = %d;",
+			(int) $_POST["ID"]
+		);
+		
+		$old_meta_name = $wpdb->get_row($sql, ARRAY_A);
+		$old_meta_name = $old_meta_name["meta_value"];
 
 		// Make new postmeta _wp_attached_file
 		$new_meta_name = str_replace($current_filename, $new_filename, $old_meta_name);
-		mysql_query("UPDATE $postmeta_table_name SET meta_value = '$new_meta_name' WHERE meta_key = '_wp_attached_file' AND post_id = '" . (int) $_POST["ID"] . "'");
+		$sql = $wpdb->prepare(
+			"UPDATE $postmeta_table_name SET meta_value = '$new_meta_name' WHERE meta_key = '_wp_attached_file' AND post_id = %d;",
+			(int) $_POST["ID"]
+		);
+		$wpdb->query($sql);
 
 		// Make thumb and/or update metadata.  Capture original meta for later.
 		$original_meta = wp_get_attachment_metadata($_POST["ID"]);
@@ -248,7 +265,10 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		// Trigger possible updates on CDN and other plugins 
 
 		update_attached_file( (int) $_POST["ID"], $new_file);
-
+		
+		if(function_exists('bu_clean_post_cache_single')){
+			bu_clean_post_cache_single( (int) $_POST["ID"] );
+		}
 	}
 
 	$returnurl = get_bloginfo("wpurl") . "/wp-admin/upload.php?posted=3";
