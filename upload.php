@@ -123,7 +123,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 		$to_list[] = $path_to;
 	}
 	
-	$sql = "SELECT ID, post_content FROM $table_name WHERE " . implode(' OR ', $likes);
+	$sql = "SELECT ID, post_content, post_type FROM $table_name WHERE " . implode(' OR ', $likes);
 	
 	$results = $wpdb->get_results($sql, ARRAY_A);
 
@@ -137,10 +137,17 @@ function emr_perform_rewrites($rewrites, $table_name) {
 		if ($replacements) {
 			$post_content = esc_sql($post_content);
 			$wpdb->query(sprintf("UPDATE $table_name SET post_content = '%s' WHERE ID = %d", $post_content, $row['ID']));
+
+			// Clear the post cache for the rewritten post.
+			if(function_exists('bu_clean_post_cache_single')){
+				// BU Cache expects a post object with an ID and post_type.
+				$row_obj = new stdClass;
+				$row_obj->ID = $row['ID'];
+				$row_obj->post_type = $row['post_type'];
+
+				bu_clean_post_cache_single($row_obj);
+			}
 		}
-	}
-	if(function_exists('bu_clean_post_cache_single')){
-		bu_clean_post_cache_single($row['ID']);
 	}
 }
 
