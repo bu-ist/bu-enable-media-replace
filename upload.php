@@ -267,7 +267,12 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		update_attached_file( (int) $_POST["ID"], $new_file);
 		
 		if(function_exists('bu_clean_post_cache_single')){
-			bu_clean_post_cache_single( (int) $_POST["ID"] );
+			// BU Cache expects a post object, but only uses ID and post_type.  Don't bother fetching the full post object, just make a new object to pass to BU Cache.
+			$post_obj = new stdClass;
+			$post_obj->ID = $_POST["ID"];
+			$post_obj->post_type = 'attachment';
+
+			bu_clean_post_cache_single($post_obj);
 		}
 	}
 
