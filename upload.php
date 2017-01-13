@@ -139,14 +139,7 @@ function emr_perform_rewrites($rewrites, $table_name) {
 			$wpdb->query(sprintf("UPDATE $table_name SET post_content = '%s' WHERE ID = %d", $post_content, $row['ID']));
 
 			// Clear the post cache for the rewritten post.
-			if(function_exists('bu_clean_post_cache_single')){
-				// BU Cache expects a post object with an ID and post_type.
-				$row_obj = new stdClass;
-				$row_obj->ID = $row['ID'];
-				$row_obj->post_type = $row['post_type'];
-
-				bu_clean_post_cache_single($row_obj);
-			}
+			clean_post_cache( $row['ID'] );
 		}
 	}
 }
@@ -272,15 +265,8 @@ if (is_uploaded_file($_FILES["userfile"]["tmp_name"])) {
 		// Trigger possible updates on CDN and other plugins 
 
 		update_attached_file( (int) $_POST["ID"], $new_file);
-		
-		if(function_exists('bu_clean_post_cache_single')){
-			// BU Cache expects a post object, but only uses ID and post_type.  Don't bother fetching the full post object, just make a new object to pass to BU Cache.
-			$post_obj = new stdClass;
-			$post_obj->ID = $_POST["ID"];
-			$post_obj->post_type = 'attachment';
 
-			bu_clean_post_cache_single($post_obj);
-		}
+		clean_post_cache($_POST["ID"]);
 	}
 
 	$returnurl = get_bloginfo("wpurl") . "/wp-admin/upload.php?posted=3";
