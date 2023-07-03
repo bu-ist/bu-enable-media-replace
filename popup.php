@@ -2,8 +2,8 @@
 /**
  * Uploadscreen for selecting and uploading new media file
  *
- * @author      Måns Jonasson  <http://www.mansjonasson.se>
- * @copyright   Måns Jonasson 13 sep 2010
+ * @author      Mï¿½ns Jonasson  <http://www.mansjonasson.se>
+ * @copyright   Mï¿½ns Jonasson 13 sep 2010
  * @version     $Revision: 2303 $ | $Date: 2010-09-13 11:12:35 +0200 (ma, 13 sep 2010) $
  * @package     wordpress
  * @subpackage  enable-media-replace
@@ -50,21 +50,9 @@ $method = defined('EMR_METHOD') ? EMR_METHOD : EMR_METHOD_BOTH;
 
 		<input type="file" name="userfile" />
 
-	<?php if ($method == EMR_METHOD_BOTH): ?>
-		<p><?php echo __("Select media replacement type:", "enable-media-replace"); ?></p>
-
-		<label for="replace_type_1"><input CHECKED id="replace_type_1" type="radio" name="replace_type" value="replace"> <?php echo __("Just replace the file", "enable-media-replace"); ?></label>
-		<p class="howto"><?php echo __("Note: This option requires you to upload a file of the same type (", "enable-media-replace"); ?><?php echo $current_filetype; ?><?php echo __(") as the one you are replacing. The name of the attachment will stay the same (", "enable-media-replace"); ?><?php echo $current_filename; ?><?php echo __(") no matter what the file you upload is called.", "enable-media-replace"); ?></p>
-
-		<label for="replace_type_2"><input id="replace_type_2" type="radio" name="replace_type" value="replace_and_search"> <?php echo __("Replace the file, use new file name and update all links", "enable-media-replace"); ?></label>
-		<p class="howto"><?php echo __("Note: If you check this option, the name and type of the file you are about to upload will replace the old file. All links pointing to the current file (", "enable-media-replace"); ?><?php echo $current_filename; ?><?php echo __(") will be updated to point to the new file name.", "enable-media-replace"); ?></p>
-	<?php elseif ($method == EMR_METHOD_REPLACE): ?>
+		<input id="replace_type" type="hidden" name="replace_type" value="replace">
 		<p><?php echo __("<strong>Replacement method:</strong> ", "enable-media-replace");  echo __("Just replace the file", "enable-media-replace"); ?></p>
 		<p class="howto"><?php echo __("Note: This method requires you to upload a file of the same type (", "enable-media-replace"); ?><?php echo $current_filetype; ?><?php echo __(") as the one you are replacing. The name of the attachment will stay the same (", "enable-media-replace"); ?><?php echo $current_filename; ?><?php echo __(") no matter what the file you upload is called.", "enable-media-replace"); ?></p>
-	<?php elseif ($method == EMR_METHOD_REPLACE_AND_RENAME): ?>
-		<p><?php echo __("<strong>Replacement method:</strong> ", "enable-media-replace");  echo __("Replace the file, use new file name and update all links", "enable-media-replace"); ?></label>
-		<p class="howto"><?php echo __("Note: If you check this option, the name and type of the file you are about to upload will replace the old file. All links pointing to the current file (", "enable-media-replace"); ?><?php echo $current_filename; ?><?php echo __(") will be updated to point to the new file name.", "enable-media-replace"); ?></p>
-	<?php endif;?>
 
 		<input type="submit" class="button" value="<?php echo __("Upload", "enable-media-replace"); ?>" /> <a href="#" onclick="history.back();"><?php echo __("Cancel", "enable-media-replace"); ?></a>
 
