@@ -3,7 +3,7 @@
 Plugin Name: Enable Media Replace
 Plugin URI: http://www.mansjonasson.se/enable-media-replace
 Description: Enable replacing media files by uploading a new file in the "Edit Media" section of the WordPress Media Library.
-Version: 2.9.3-BU-1.2
+Version: 2.9.3-BU-1.3
 Author: Måns Jonasson and BU IS&T
 Author URI: http://www.mansjonasson.se
 
@@ -28,7 +28,7 @@ Developed for .SE (Stiftelsen för Internetinfrastruktur) - http://www.iis.se
 define('EMR_METHOD_REPLACE',                        1);
 define('EMR_METHOD_REPLACE_AND_RENAME',             2);
 define('EMR_METHOD_BOTH',                           3);
-define('EMR_METHOD',    EMR_METHOD_REPLACE_AND_RENAME);
+define('EMR_METHOD',    EMR_METHOD_REPLACE);
 
 add_action('admin_init', 'enable_media_replace_init');
 add_action('admin_menu', 'emr_menu');
